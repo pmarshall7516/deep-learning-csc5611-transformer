@@ -70,7 +70,7 @@ class EncoderLayer(nn.Module):
         self.feed_forward = PositionWiseFeedForward(d_model, d_ff)
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(dropout) # Omit Dropout and atempt to train -> may need smaller networks to train as efficient
 
     def forward(self, x, mask):
         attn_output = self.self_attn(x, x, x, mask)
@@ -83,7 +83,7 @@ class DecoderLayer(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, dropout):
         super(DecoderLayer, self).__init__()
         self.self_attn = MultiHeadAttention(d_model, num_heads)
-        self.cross_attn = MultiHeadAttention(d_model, num_heads)
+        self.cross_attn = MultiHeadAttention(d_model, num_heads) # Dont need it
         self.feed_forward = PositionWiseFeedForward(d_model, d_ff)
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
@@ -98,3 +98,4 @@ class DecoderLayer(nn.Module):
         ff_output = self.feed_forward(x)
         x = self.norm3(x + self.dropout(ff_output))
         return x
+    
