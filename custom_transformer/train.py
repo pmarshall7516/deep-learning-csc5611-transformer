@@ -13,7 +13,7 @@ import torch
 import random
 import matplotlib.pyplot as plt
 from transformer import Transformer
-from layers import Input, MSELoss, DEVICE
+from layers import Input, CrossEntropyLoss, Softmax, DEVICE
 
 # --- Load and Prepare Dataset ---
 with open("input.txt", "r", encoding="utf-8") as f:
@@ -57,27 +57,31 @@ for epoch in range(1, EPOCHS + 1):
     src_seq = data[idx:idx + MAX_SEQ_LEN]
     tgt_seq = data[idx + 1:idx + MAX_SEQ_LEN + 1]
 
-    # One-hot encode source
-    src_input = torch.nn.functional.one_hot(src_seq, num_classes=vocab_size).float().unsqueeze(0).to(DEVICE)
+    src_input = src_seq.unsqueeze(0).to(DEVICE)
 
     # Forward pass
     logits = transformer.forward(src_input)
 
     # Predict next token from final time step
     preds = logits[:, -1, :]
-    target = torch.nn.functional.one_hot(tgt_seq[-1].unsqueeze(0), num_classes=vocab_size).float().to(DEVICE)
 
     # Setup for autograd
     pred_layer = Input(preds.shape)
     pred_layer.set(preds)
+
+    softmax_layer = Softmax(pred_layer)
+    softmax_layer.forward()
+
+    target_idx = tgt_seq[-1].item()
+    target = torch.nn.functional.one_hot(torch.tensor([target_idx], device=DEVICE), num_classes=vocab_size).float()
+    
     tgt_layer = Input(target.shape)
     tgt_layer.set(target)
 
-    loss_layer = MSELoss(pred_layer, tgt_layer)
+    loss_layer = CrossEntropyLoss(softmax_layer, tgt_layer)
     loss_layer.forward()
     loss = loss_layer.output
-
-    # Track loss
+    
     losses.append(loss.item())
 
     # Zero gradients
@@ -87,6 +91,9 @@ for epoch in range(1, EPOCHS + 1):
     # Backward pass
     loss_layer.grad = torch.ones_like(loss)
     loss_layer.backward()
+
+    softmax_layer.grad = loss_layer.input_layer.grad
+    softmax_layer.backward()
 
     # Gradient step
     for param in transformer.parameters():
